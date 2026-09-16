@@ -1,6 +1,6 @@
 const CATEGORIES = ["All", "Starters", "Mains", "Desserts"];
 
-export default function Menu({ dishes, selectedCategory, onCategoryChange, onAddToCart }) {
+export default function Menu({ dishes, dishPrices, selectedCategory, onCategoryChange, onAddToCart }) {
   const filteredDishes =
     selectedCategory === "All"
       ? dishes
@@ -30,7 +30,7 @@ export default function Menu({ dishes, selectedCategory, onCategoryChange, onAdd
               <h3>{dish.name}</h3>
               <p>{dish.description}</p>
               <div className="dish-footer">
-                <span className="dish-price">€{dish.price.toFixed(2)}</span>
+                <span className="dish-price">€{(dishPrices[dish.id] ?? dish.price).toFixed(2)}</span>
                 <button className="add-btn" onClick={() => onAddToCart(dish)}>
                   Add to cart
                 </button>

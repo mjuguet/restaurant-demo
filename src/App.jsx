@@ -15,6 +15,8 @@ import {
 } from "./splitBill";
 import "./App.css";
 
+const PRICE_BUMP_RATE = 0.05;
+
 export default function App() {
   const [cart, setCart] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState("All");
@@ -22,8 +24,12 @@ export default function App() {
   const [guests, setGuests] = useState([]);
   const [splitBillEnabled, setSplitBillEnabled] = useState(false);
   const [showSplitBillModal, setShowSplitBillModal] = useState(false);
+  const [dishPrices, setDishPrices] = useState(() =>
+    Object.fromEntries(dishes.map((dish) => [dish.id, dish.price]))
+  );
 
   function addToCart(dish) {
+    const currentPrice = dishPrices[dish.id];
     const existing = cart.find((item) => item.id === dish.id);
     if (existing) {
       setCart(
@@ -31,6 +37,7 @@ export default function App() {
           item.id === dish.id
             ? {
                 ...item,
+                price: currentPrice,
                 quantity: item.quantity + 1,
                 unitAssignments: resizeUnitAssignments(item.unitAssignments, item.quantity + 1),
               }
@@ -38,12 +45,20 @@ export default function App() {
         )
       );
     } else {
-      setCart([...cart, { ...dish, quantity: 1, unitAssignments: createUnitAssignments(1) }]);
+      setCart([
+        ...cart,
+        { ...dish, price: currentPrice, quantity: 1, unitAssignments: createUnitAssignments(1) },
+      ]);
     }
+    setDishPrices((prev) => ({ ...prev, [dish.id]: currentPrice * (1 + PRICE_BUMP_RATE) }));
   }
 
   function removeFromCart(id) {
     setCart(cart.filter((item) => item.id !== id));
+    const baseDish = dishes.find((dish) => dish.id === id);
+    if (baseDish) {
+      setDishPrices((prev) => ({ ...prev, [id]: baseDish.price }));
+    }
   }
 
   function updateQuantity(id, quantity) {
@@ -123,9 +138,12 @@ export default function App() {
         </div>
       </header>
 
+      <h2 className="page-title">Mangez varié !!</h2>
+
       <main className="app-main">
         <Menu
           dishes={dishes}
+          dishPrices={dishPrices}
           selectedCategory={selectedCategory}
           onCategoryChange={setSelectedCategory}
           onAddToCart={addToCart}

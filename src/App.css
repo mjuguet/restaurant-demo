@@ -97,6 +97,15 @@ body {
   min-height: calc(100vh - 64px);
 }
 
+.page-title {
+  text-align: center;
+  padding: 20px 40px 0;
+  font-size: 1.4rem;
+  font-weight: 800;
+  letter-spacing: -0.3px;
+  color: #00c1b2;
+}
+
 /* ─── Menu ────────────────────────────────────────────── */
 .menu {
   flex: 1;
