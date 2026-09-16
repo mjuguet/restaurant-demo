@@ -1,7 +1,18 @@
-export default function Cart({ cart, onRemove, onUpdateQuantity, onCheckout }) {
+import { TAX_RATE } from "../splitBill";
+
+export default function Cart({
+  cart,
+  onRemove,
+  onUpdateQuantity,
+  onCheckout,
+  guests,
+  splitBillEnabled,
+  onOpenSplitBill,
+  onCancelSplitBill,
+}) {
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
-  const tax = subtotal * 0.20;
+  const tax = subtotal * TAX_RATE;
   const total = subtotal + tax;
 
   return (
@@ -53,6 +64,30 @@ export default function Cart({ cart, onRemove, onUpdateQuantity, onCheckout }) {
           <span>Total</span>
           <span>€{total.toFixed(2)}</span>
         </div>
+      </div>
+
+      <div className="split-bill-bar">
+        {splitBillEnabled ? (
+          <>
+            <span className="split-bill-status">
+              👥 Split bill · {guests.length} guest{guests.length === 1 ? "" : "s"}
+            </span>
+            <button className="split-link-btn" onClick={onOpenSplitBill}>
+              Edit
+            </button>
+            <button className="split-link-btn" onClick={onCancelSplitBill}>
+              Cancel
+            </button>
+          </>
+        ) : (
+          <button
+            className="split-bill-btn"
+            disabled={cart.length === 0}
+            onClick={onOpenSplitBill}
+          >
+            👥 Split the bill
+          </button>
+        )}
       </div>
 
       <button

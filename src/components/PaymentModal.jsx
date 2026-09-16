@@ -1,13 +1,28 @@
 import { useState, useEffect } from "react";
+import { TAX_RATE, computeGuestBreakdown, getUnassignedSummary } from "../splitBill";
 
 function generateOrderNumber() {
   return "DL-" + Math.floor(10000 + Math.random() * 90000);
 }
 
-export default function PaymentModal({ cart, onClose, onSuccess }) {
+export default function PaymentModal({
+  cart,
+  guests,
+  splitBillEnabled,
+  onEditAssignments,
+  onClose,
+  onSuccess,
+}) {
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const tax = subtotal * 0.2;
+  const tax = subtotal * TAX_RATE;
   const total = subtotal + tax;
+
+  const unassigned = splitBillEnabled
+    ? getUnassignedSummary(cart, guests)
+    : { totalUnits: 0, groups: [] };
+  const breakdown =
+    splitBillEnabled && unassigned.totalUnits === 0 ? computeGuestBreakdown(cart, guests) : [];
+  const blockedBySplitBill = splitBillEnabled && unassigned.totalUnits > 0;
 
   const [step, setStep] = useState("summary");
   const [orderNumber] = useState(generateOrderNumber);
@@ -78,9 +93,47 @@ export default function PaymentModal({ cart, onClose, onSuccess }) {
                 <span>Total</span><span>€{total.toFixed(2)}</span>
               </div>
             </div>
+
+            {splitBillEnabled && (
+              <div className="split-payment-section">
+                {blockedBySplitBill ? (
+                  <p className="split-warning split-warning-blocking">
+                    {unassigned.totalUnits} item(s) still need a guest:{" "}
+                    {unassigned.groups.map((g) => `${g.name} (${g.count})`).join(", ")}.{" "}
+                    <button className="split-link-btn" onClick={onEditAssignments}>
+                      Assign now
+                    </button>
+                  </p>
+                ) : (
+                  <>
+                    <h3 className="split-section-title">Split by guest</h3>
+                    <ul className="split-breakdown-list">
+                      {breakdown.map((row) => (
+                        <li key={row.guestId} className="split-breakdown-row">
+                          <span className="split-breakdown-name">{row.name}</span>
+                          <span className="split-breakdown-amounts">
+                            <span>Subtotal €{row.subtotal.toFixed(2)}</span>
+                            <span>Tax €{row.tax.toFixed(2)}</span>
+                            <span className="split-breakdown-total">€{row.total.toFixed(2)}</span>
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                    <button className="split-link-btn" onClick={onEditAssignments}>
+                      Edit assignments
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+
             <div className="modal-actions">
               <button className="modal-btn-secondary" onClick={onClose}>Cancel</button>
-              <button className="modal-btn-primary" onClick={() => setStep("card")}>
+              <button
+                className="modal-btn-primary"
+                disabled={blockedBySplitBill}
+                onClick={() => setStep("card")}
+              >
                 Proceed to Payment
               </button>
             </div>
