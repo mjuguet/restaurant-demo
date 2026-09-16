@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { dishes, deliveryInfo } from "./data";
 import Menu from "./components/Menu";
 import Cart from "./components/Cart";
@@ -15,6 +15,7 @@ import {
   makeGuestId,
 } from "./splitBill";
 import { isDefaultCustomization } from "./customization";
+import { DISCOUNT_RATE, IDLE_MS, pickRandomDiscountDish } from "./idleDiscount";
 import "./App.css";
 
 const PRICE_BUMP_RATE = 0.05;
@@ -30,9 +31,43 @@ export default function App() {
     Object.fromEntries(dishes.map((dish) => [dish.id, dish.price]))
   );
   const [customizingDish, setCustomizingDish] = useState(null);
+  const [discountDishId, setDiscountDishId] = useState(null);
+
+  const cartRef = useRef(cart);
+  useEffect(() => {
+    cartRef.current = cart;
+  }, [cart]);
+  const discountDishIdRef = useRef(discountDishId);
+  useEffect(() => {
+    discountDishIdRef.current = discountDishId;
+  }, [discountDishId]);
+
+  // After IDLE_MS with no mouse/keyboard/scroll activity, surprise the user
+  // with a 10% discount on one dish they haven't ordered yet.
+  useEffect(() => {
+    let timer;
+    function triggerIdleDiscount() {
+      if (discountDishIdRef.current) return;
+      const pick = pickRandomDiscountDish(dishes, cartRef.current);
+      if (pick) setDiscountDishId(pick.id);
+    }
+    function resetTimer() {
+      clearTimeout(timer);
+      timer = setTimeout(triggerIdleDiscount, IDLE_MS);
+    }
+    const events = ["mousemove", "mousedown", "keydown", "scroll", "touchstart"];
+    events.forEach((event) => window.addEventListener(event, resetTimer));
+    resetTimer();
+    return () => {
+      events.forEach((event) => window.removeEventListener(event, resetTimer));
+      clearTimeout(timer);
+    };
+  }, []);
 
   function addToCart(dish, customization = null) {
-    const currentPrice = dishPrices[dish.id];
+    const basePrice = dishPrices[dish.id];
+    const isDiscounted = discountDishId === dish.id;
+    const currentPrice = isDiscounted ? basePrice * (1 - DISCOUNT_RATE) : basePrice;
     const isCustomized = customization && !isDefaultCustomization(dish, customization);
 
     if (!isCustomized) {
@@ -80,7 +115,8 @@ export default function App() {
       ]);
     }
 
-    setDishPrices((prev) => ({ ...prev, [dish.id]: currentPrice * (1 + PRICE_BUMP_RATE) }));
+    setDishPrices((prev) => ({ ...prev, [dish.id]: basePrice * (1 + PRICE_BUMP_RATE) }));
+    if (isDiscounted) setDiscountDishId(null);
   }
 
   function removeFromCart(id) {
@@ -185,6 +221,7 @@ export default function App() {
         <Menu
           dishes={dishes}
           dishPrices={dishPrices}
+          discountDishId={discountDishId}
           selectedCategory={selectedCategory}
           onCategoryChange={setSelectedCategory}
           onAddToCart={addToCart}
