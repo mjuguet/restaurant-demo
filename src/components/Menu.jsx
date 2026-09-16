@@ -1,6 +1,15 @@
+import { isCustomizable } from "../customization";
+
 const CATEGORIES = ["All", "Starters", "Mains", "Desserts"];
 
-export default function Menu({ dishes, dishPrices, selectedCategory, onCategoryChange, onAddToCart }) {
+export default function Menu({
+  dishes,
+  dishPrices,
+  selectedCategory,
+  onCategoryChange,
+  onAddToCart,
+  onCustomize,
+}) {
   const filteredDishes =
     selectedCategory === "All"
       ? dishes
@@ -25,7 +34,19 @@ export default function Menu({ dishes, dishPrices, selectedCategory, onCategoryC
       <div className="dish-grid">
         {filteredDishes.map((dish) => (
           <div key={dish.id} className="dish-card">
-            <span className="dish-emoji">{dish.emoji}</span>
+            {isCustomizable(dish) ? (
+              <button
+                type="button"
+                className="dish-emoji dish-emoji-customizable"
+                title="Click to customize ingredients"
+                onClick={() => onCustomize(dish)}
+              >
+                {dish.emoji}
+                <span className="dish-emoji-badge">✎</span>
+              </button>
+            ) : (
+              <span className="dish-emoji">{dish.emoji}</span>
+            )}
             <div className="dish-info">
               <h3>{dish.name}</h3>
               <p>{dish.description}</p>

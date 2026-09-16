@@ -1,4 +1,5 @@
 import { TAX_RATE } from "../splitBill";
+import { isCustomizable, describeCustomization, isBunOnlyBurger } from "../customization";
 
 export default function Cart({
   cart,
@@ -23,31 +24,47 @@ export default function Cart({
         <p className="cart-empty">No items yet.</p>
       ) : (
         <ul className="cart-list">
-          {cart.map((item) => (
-            <li key={item.id} className="cart-item">
-              <span className="cart-item-emoji">{item.emoji}</span>
-              <div className="cart-item-details">
-                <span className="cart-item-name">{item.name}</span>
-                <div className="cart-item-qty-controls">
-                  <button
-                    className="qty-btn"
-                    onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}
-                  >
-                    −
-                  </button>
-                  <span className="cart-item-qty">{item.quantity}</span>
-                  <button
-                    className="qty-btn"
-                    onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
-                  >
-                    +
-                  </button>
+          {cart.map((item) => {
+            const customizable = isCustomizable(item);
+            const changes = customizable ? describeCustomization(item, item.customization) : [];
+            const bunOnly = isBunOnlyBurger(item, item.customization);
+
+            return (
+              <li key={item.id} className="cart-item">
+                <div className="cart-item-row">
+                  <span className="cart-item-emoji">{item.emoji}</span>
+                  <div className="cart-item-details">
+                    <span className="cart-item-name">{item.name}</span>
+                    <div className="cart-item-qty-controls">
+                      <button
+                        className="qty-btn"
+                        onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}
+                      >
+                        −
+                      </button>
+                      <span className="cart-item-qty">{item.quantity}</span>
+                      <button
+                        className="qty-btn"
+                        onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                  <span className="cart-item-price">€{(item.price * item.quantity).toFixed(2)}</span>
+                  <button className="remove-btn" onClick={() => onRemove(item.id)}>✕</button>
                 </div>
-              </div>
-              <span className="cart-item-price">€{(item.price * item.quantity).toFixed(2)}</span>
-              <button className="remove-btn" onClick={() => onRemove(item.id)}>✕</button>
-            </li>
-          ))}
+                {customizable && (
+                  <span className="cart-item-note">
+                    {changes.length > 0 ? `Customized: ${changes.join(", ")}` : "Standard (no changes)"}
+                  </span>
+                )}
+                {bunOnly && (
+                  <span className="cart-item-easter-egg">choisissez plutôt une brischetta?</span>
+                )}
+              </li>
+            );
+          })}
         </ul>
       )}
 

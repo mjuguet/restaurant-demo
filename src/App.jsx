@@ -4,6 +4,7 @@ import Menu from "./components/Menu";
 import Cart from "./components/Cart";
 import PaymentModal from "./components/PaymentModal";
 import SplitBillModal from "./components/SplitBillModal";
+import CustomizeModal from "./components/CustomizeModal";
 import {
   createUnitAssignments,
   resizeUnitAssignments,
@@ -13,6 +14,7 @@ import {
   resetAssignments,
   makeGuestId,
 } from "./splitBill";
+import { isDefaultCustomization } from "./customization";
 import "./App.css";
 
 const PRICE_BUMP_RATE = 0.05;
@@ -27,38 +29,77 @@ export default function App() {
   const [dishPrices, setDishPrices] = useState(() =>
     Object.fromEntries(dishes.map((dish) => [dish.id, dish.price]))
   );
+  const [customizingDish, setCustomizingDish] = useState(null);
 
-  function addToCart(dish) {
+  function addToCart(dish, customization = null) {
     const currentPrice = dishPrices[dish.id];
-    const existing = cart.find((item) => item.id === dish.id);
-    if (existing) {
-      setCart(
-        cart.map((item) =>
-          item.id === dish.id
-            ? {
-                ...item,
-                price: currentPrice,
-                quantity: item.quantity + 1,
-                unitAssignments: resizeUnitAssignments(item.unitAssignments, item.quantity + 1),
-              }
-            : item
-        )
-      );
+    const isCustomized = customization && !isDefaultCustomization(dish, customization);
+
+    if (!isCustomized) {
+      const existing = cart.find((item) => item.dishId === dish.id && !item.customization);
+      if (existing) {
+        setCart(
+          cart.map((item) =>
+            item.id === existing.id
+              ? {
+                  ...item,
+                  price: currentPrice,
+                  quantity: item.quantity + 1,
+                  unitAssignments: resizeUnitAssignments(item.unitAssignments, item.quantity + 1),
+                }
+              : item
+          )
+        );
+      } else {
+        setCart([
+          ...cart,
+          {
+            ...dish,
+            id: dish.id,
+            dishId: dish.id,
+            customization: null,
+            price: currentPrice,
+            quantity: 1,
+            unitAssignments: createUnitAssignments(1),
+          },
+        ]);
+      }
     } else {
+      const lineId = `${dish.id}-custom-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
       setCart([
         ...cart,
-        { ...dish, price: currentPrice, quantity: 1, unitAssignments: createUnitAssignments(1) },
+        {
+          ...dish,
+          id: lineId,
+          dishId: dish.id,
+          customization,
+          price: currentPrice,
+          quantity: 1,
+          unitAssignments: createUnitAssignments(1),
+        },
       ]);
     }
+
     setDishPrices((prev) => ({ ...prev, [dish.id]: currentPrice * (1 + PRICE_BUMP_RATE) }));
   }
 
   function removeFromCart(id) {
+    const removed = cart.find((item) => item.id === id);
     setCart(cart.filter((item) => item.id !== id));
-    const baseDish = dishes.find((dish) => dish.id === id);
+    const dishId = removed?.dishId ?? id;
+    const baseDish = dishes.find((dish) => dish.id === dishId);
     if (baseDish) {
-      setDishPrices((prev) => ({ ...prev, [id]: baseDish.price }));
+      setDishPrices((prev) => ({ ...prev, [dishId]: baseDish.price }));
     }
+  }
+
+  function openCustomize(dish) {
+    setCustomizingDish(dish);
+  }
+
+  function confirmCustomize(customization) {
+    addToCart(customizingDish, customization);
+    setCustomizingDish(null);
   }
 
   function updateQuantity(id, quantity) {
@@ -147,6 +188,7 @@ export default function App() {
           selectedCategory={selectedCategory}
           onCategoryChange={setSelectedCategory}
           onAddToCart={addToCart}
+          onCustomize={openCustomize}
         />
         <Cart
           cart={cart}
@@ -159,6 +201,13 @@ export default function App() {
           onCancelSplitBill={cancelSplitBill}
         />
       </main>
+      {customizingDish && (
+        <CustomizeModal
+          dish={customizingDish}
+          onConfirm={confirmCustomize}
+          onClose={() => setCustomizingDish(null)}
+        />
+      )}
       {showSplitBillModal && (
         <SplitBillModal
           cart={cart}
